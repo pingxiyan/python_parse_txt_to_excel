@@ -12,7 +12,7 @@ def parse_param():
     parser = argparse.ArgumentParser(description='Parse input parameters.')
     parser.add_argument('-i', default = "run_test_log_gpu_1.log",
                         help='Input log file.')
-    parser.add_argument('-o', default="output.xlsx",
+    parser.add_argument('-o', default="output.xls",
                         help='Output excel report')
     args = parser.parse_args()
 
@@ -33,15 +33,14 @@ def parse_log():
     file1 = open(g_input_name, 'r')
     Lines = file1.readlines()
 
-    Test_Coms_Num = 0
+    Test_Demos_Num = 0
 
-    Test_One_Com_Num = 0
-    Test_One_Com_Err_Num = 0
-    Test_One_Com_Err_LOGS = []
+    Test_One_Demo_Num = 0
+    Test_One_Demo_Err_Num = 0
 
-    FlagProcessComs = 0
-    AllComs = []
-    G_OldComName = ""
+    FlagProcessDemos = 0
+    AllDemos = []
+    G_OldDemoName = ""
 
     # Parse
     count = 0
@@ -49,72 +48,96 @@ def parse_log():
         count += 1
 
         # Compare each line flag.
-        if FlagProcessComs == 1:
+        if FlagProcessDemos == 1:
             if line[0:11] == "Test case #":
-                Test_One_Com_Num += 1
+                Test_One_Demo_Num += 1
                 print("  #{}".format(line[0:13]))
             elif line[0:10] == "Exit code:":
-                Test_One_Com_Err_Num += 1
+                Test_One_Demo_Err_Num += 1
             elif line[0:9] == "No exist:":
-                Test_One_Com_Err_Num += 1
+                Test_One_Demo_Err_Num += 1
         
         # Find one Component:
         if line[0:8] == "Testing ":
-            if FlagProcessComs == 1:
-                AllComs.append({"com": G_OldComName, "case_num": Test_One_Com_Num, "err_num":Test_One_Com_Err_Num})
-                Test_One_Com_Num = 0
-                Test_One_Com_Err_Num = 0
+            if FlagProcessDemos == 1:
+                AllDemos.append({"demo": G_OldDemoName, "demo_num": Test_One_Demo_Num, "err_num":Test_One_Demo_Err_Num})
+                Test_One_Demo_Num = 0
+                Test_One_Demo_Err_Num = 0
 
-            G_OldComName=line[8:-4]
-            print("Com: {}, ".format(G_OldComName))
+            G_OldDemoName=line[8:-4]
+            print("Com: {}, ".format(G_OldDemoName))
 
-            Test_Coms_Num += 1
-            FlagProcessComs = 1
+            Test_Demos_Num += 1
+            FlagProcessDemos = 1
             continue
 
     # Append last component.
-    if FlagProcessComs == 1:
-        AllComs.append({"com": G_OldComName, "case_num": Test_One_Com_Num, "err_num":Test_One_Com_Err_Num})
-        Test_One_Com_Num = 0
-        Test_One_Com_Err_Num = 0
+    if FlagProcessDemos == 1:
+        AllDemos.append({"demo": G_OldDemoName, "demo_num": Test_One_Demo_Num, "err_num":Test_One_Demo_Err_Num})
+        Test_One_Demo_Num = 0
+        Test_One_Demo_Err_Num = 0
 
-    print("Test_Coms_Num: {}".format(Test_Coms_Num))
-    for c in AllComs:
-        print("  {}: {}/{}".format(c["com"], c["err_num"], c["case_num"]))
+    print("Test_Demos_Num: {}".format(Test_Demos_Num))
+    for c in AllDemos:
+        print("  {}: {}/{}".format(c["demo"], c["err_num"], c["demo_num"]))
 
     print("parse_log done.")
-    return AllComs
+    return AllDemos
 
 def export_excel(AllRslt):
     print("========================")
     print("Start export to excel...")
     
     TotalComs = len(AllRslt)
+    TotalErrComNum = 0
     TotalCases = 0
     TotalErrNum = 0
+    # Statistic
     for r in AllRslt:
-       TotalCases += r["case_num"]
+       TotalCases += r["demo_num"]
        TotalErrNum += r["err_num"]
-       print("  {}: {}/{}".format(r["com"], r["err_num"], r["case_num"]))
-    
-    print("Test_Coms_Num: {}, {}/{}".format(TotalComs, TotalErrNum, TotalCases))
-  
+    #    print("  {}: {}/{}".format(r["demo"], r["err_num"], r["demo_num"]))
+
     # Workbook is created
     wb = Workbook()
-    
+    # Specifying style: font: bold on, height 320
+    style1 = xlwt.easyxf('font: bold on')
+    # Applying multiple styles
+    style2 = xlwt.easyxf('font: bold 1, color red;')
+
     # add_sheet is used to create sheet.
-    sheet1 = wb.add_sheet('Sheet 1')
+    sheet1 = wb.add_sheet('Summary')
     
-    sheet1.write(1, 0, 'ISBT DEHRADUN')
-    sheet1.write(2, 0, 'SHASTRADHARA')
-    sheet1.write(3, 0, 'CLEMEN TOWN')
-    sheet1.write(4, 0, 'RAJPUR ROAD')
-    sheet1.write(5, 0, 'CLOCK TOWER')
-    sheet1.write(0, 1, 'ISBT DEHRADUN')
-    sheet1.write(0, 2, 'SHASTRADHARA')
-    sheet1.write(0, 3, 'CLEMEN TOWN')
-    sheet1.write(0, 4, 'RAJPUR ROAD')
-    sheet1.write(0, 5, 'CLOCK TOWER')
+    row = 1
+    sheet1.write(row, 0, 'OMZ version', style1)
+    row += 1
+
+    sheet1.write(row, 0, 'OpenVINO version', style1)
+    row += 2
+    
+    sheet1.write(row, 0, 'Result Summary', style1); sheet1.write(row, 1, 'Total', style1)
+    row += 1
+    sheet1.write(row, 0, 'Passed Demos');  sheet1.write(row, 1, TotalComs); 
+    row += 1
+    sheet1.write(row, 0, 'Failed Demos');  sheet1.write(row, 1, TotalComs); 
+    row += 1
+    sheet1.write(row, 0, 'Passed Cases');  sheet1.write(row, 1, TotalCases - TotalErrNum); 
+    row += 1
+    sheet1.write(row, 0, 'Failed Cases');  sheet1.write(row, 1, TotalErrNum); 
+    row += 2
+
+    # Diagram
+
+    # Detials
+    sheet1.write(row, 0, 'Demo Name', style1)
+    sheet1.write(row, 4, 'AUTO:CPU,GPU', style1); sheet1.write(row, 5, 'MULTI:CPU,GPU', style1); sheet1.write(row, 6, 'COMMENT', style1)
+    row += 1
+    for r in AllRslt:
+       sheet1.write(row, 0, r["demo"])
+       sheet1.write(row, 4, "{}/{}".format(r["err_num"], r["demo_num"]))
+       row += 1
+
+    print("Test_Demos_Num: {}, {}/{}".format(TotalComs, TotalErrNum, TotalCases))
     
     global g_output_name
     wb.save(g_output_name)
